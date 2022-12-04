@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VanillaJS Wallet Interactions</title>
+
+    <!-- OPTIONAL TAILWIND STYLING -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- ethers.js - Needed for verifying signature, and various hashing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+
+    <!-- Our main script -->
+    <script src="./scripts.js"></script>
+</head>
+
+<body class="bg-zinc-900 pt-24 lg:pt-0">
+    <nav
+        class="fixed top-0 left-0 right-0 lg:right-auto bottom-0 w-full lg:max-w-xs z-10 h-[80px] lg:h-auto bg-black bg-opacity-90 lg:bg-opacity-30 lg:py-8 text-zinc-400 overflow-hidden lg:overflow-scroll">
+        <span
+            class="text-xl bg-black lg:bg-transparent w-full top-0 absolute lg:relative text-zinc-200 mb-6 block px-8 h-[80px] lg:h-auto flex items-center">VanillaJS
+            Wallet
+            Interactions</span>
+
+        <button id="button-menu"
+            class="lg:hidden absolute top-5 right-8 h-10 mb-2 bg-zinc-200 text-zinc-800 px-6 rounded-full font-medium disabled:bg-opacity-30 hover:bg-white transition-all ease-in-out duration-200">
+            <span class="absolute inset-0 m-auto block w-[20px] h-[3px] bg-zinc-700"></span>
+            <span class="absolute inset-0 m-auto block w-[20px] h-[3px] bg-zinc-700 rotate-90"></span>
+        </button>
+
+        <ul class="absolute top-[80px] bottom-0 left-0 right-0 overflow-scroll">
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#wallet-connection">
+                    Wallet Connection
+                </a>
+            </li>
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#wallet-balance">
+                    Wallet Balance
+                </a>
+            </li>
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#network">
+                    Network
+                </a>
+            </li>
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#block">
+                    Block
+                </a>
+            </li>
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#sign-message">
+                    Sign Message
+                </a>
+            </li>
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#verify-signature">
+                    Verify Signature
+                </a>
+            </li>
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#contracts">
+                    Contracts
+                </a>
+            </li>
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#contract-read">
+                    Contract Read
+                </a>
+            </li>
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#contract-write">
+                    Contract Write
+                </a>
+            </li>
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#contract-logged-events">
+                    Contract Logged Events
+                </a>
+            </li>
+            <li class="mb-2">
+                <a class="block py-4 px-8 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ease-in-out duration-200"
+                    href="#deploy-contract">
+                    Deploy Contract
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <div class="p-8 lg:ml-[320px]">
+        <h1 class="text-2xl text-white mb-4">VanillaJS Wallet Interactions</h1>
+
+        <p class="text-zinc-400 mb-4">A simple demonstration on how to use basic JavaScript to interact with a MetaMask
+            wallet and a contract.</p>
+        <div class="mb-6">
+            <button type="button" disabled id="button-connect"
+                class="h-10 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Connect
+                Wallet
+                (Unsupported)</button>
+            <div id="div-error-connect" class="mt-4 bg-red-300 rounded p-6 text-red-800 hidden"></div>
+        </div>
+
+        <hr class="border-zinc-700 mb-8" />
+
+        <section id="section-connected" class="hidden">
+            <h2 id="wallet-connection" class="text-xl text-zinc-200 mb-4">Wallet Connection</h2>
+
+            <p class="text-zinc-400 mb-4">If you're seeing this then your wallet is connected.</p>
+
+            <div class="mb-4">
+                <button type="button" id="button-disconnect"
+                    class="h-10 mb-2 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Disconnect*</button>
+                <p class="text-sm text-zinc-300"><small>*Remember you're not really disconnecting unless the wallet
+                        removes
+                        the website from Connected Sites.</small></p>
+            </div>
+            <div class="mb-4">
+                <label class="block mb-2 text-zinc-600">Wallet Connected</label>
+                <code
+                    class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200"><pre id="pre-wallet-address"></pre></code>
+            </div>
+            <div class="mb-6">
+                <label class="block mb-2 text-zinc-600">Network</label>
+                <code
+                    class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200"><pre id="pre-wallet-network"></pre></code>
+            </div>
+
+            <h2 id="wallet-balance" class="text-xl text-zinc-200 mb-4">Wallet Balance</h2>
+
+            <p class="text-zinc-400 mb-4">Get the current connected wallet's balance.</p>
+
+            <form id="form-wallet-balance">
+                <div class="mb-4">
+                    <button type="submit"
+                        class="h-10 mb-2 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Get
+                        Balance</button>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Balance</label>
+                    <code
+                        class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200"><pre id="pre-wallet-balance"></pre></code>
+                </div>
+            </form>
+
+            <hr class="border-zinc-700 mb-8" />
+
+            <h2 id="network" class="text-xl text-zinc-200 mb-4">Network</h2>
+
+            <p class="text-zinc-400 mb-4">Retrieve the chain id of the current connected network.</p>
+
+            <form id="form-network-chain">
+                <div class="mb-4">
+                    <button type="submit"
+                        class="h-10 mb-2 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Get
+                        Chain</button>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Chain</label>
+                    <code
+                        class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200"><pre id="pre-network-chain"></pre></code>
+                </div>
+            </form>
+
+            <h2 id="block" class="text-xl text-zinc-200 mb-4">Block</h2>
+
+            <p class="text-zinc-400 mb-4">Retrieve the current block number of the current connected network.</p>
+
+            <form id="form-network-block">
+                <div class="mb-4">
+                    <button type="submit"
+                        class="h-10 mb-2 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Get
+                        Block</button>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Block</label>
+                    <code
+                        class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200"><pre id="pre-network-block"></pre></code>
+                </div>
+            </form>
+
+            <hr class="border-zinc-700 mb-8" />
+
+            <h2 id="sign-message" class="text-xl text-zinc-100 mb-4">Sign Message</h2>
+
+            <p class="text-zinc-400 mb-4">Sign a message with the current connected wallet.</p>
+
+            <form id="form-sign-message">
+                <div class="mb-6">
+                    <label for="input-sign-message" class="block mb-2 text-zinc-600">Message</label>
+                    <input class="h-10 w-full px-3 rounded border bg-white" id="input-sign-message" type="text"
+                        name="message" placeholder="Ex: Your message..." />
+                </div>
+                <div class="mb-4">
+                    <button type="submit"
+                        class="h-10 mb-2 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Sign
+                        Message</button>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Signature</label>
+                    <code
+                        class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200"><pre id="pre-wallet-signature"></pre></code>
+                </div>
+            </form>
+
+            <h2 id="verify-signature" class="text-xl text-zinc-100 mb-4">Verify Signature</h2>
+
+            <p class="text-zinc-400 mb-4">Verify that the signature and message are valid.</p>
+
+            <form id="form-verify-signature">
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Message</label>
+                    <input class="h-10 w-full px-3 rounded border bg-white" id="input-verify-message" type="text"
+                        name="message" placeholder="Ex: Your message..." />
+                </div>
+                <div class="mb-6">
+                    <label class="block mb-2 text-zinc-600">Signature</label>
+                    <input class="h-10 w-full px-3 rounded border bg-white" id="input-verify-signature" type="text"
+                        name="signature" placeholder="Ex: 0xdc338d9f59e8a..." />
+                </div>
+                <div class="mb-4">
+                    <button type="submit"
+                        class="h-10 mb-2 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Verify
+                        Signature</button>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Verification</label>
+                    <code
+                        class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200"><pre id="pre-signature-verification"></pre></code>
+                </div>
+            </form>
+
+            <hr class="border-zinc-700 mb-8" />
+
+            <h2 id="contracts" class="text-xl text-zinc-100 mb-4">Contracts</h2>
+
+            <p class="text-zinc-400 mb-4">List of contract details and settings for localhost.</p>
+
+            <label class="block mb-2 text-zinc-600">Solidity Contract Code</label>
+            <div class="p-4 border rounded border-zinc-700 mb-4">
+                <button id="contract-code"
+                    class="text-zinc-200 flex justify-between w-full text-left bg-zinc-700 px-3 leading-8 rounded hover:bg-zinc-600 transition-colors ease-in-out duration-200">
+                    Sample Contract Code
+                    <span>&#9660;</span>
+                </button>
+                <div class="mt-4 hidden ">
+                    <code class="block overflow-scroll relative text-zinc-200 p-6 rounded bg-zinc-800 text-zinc-200"><pre>
+<span class="text-zinc-500">// Greeter.sol</span>
+
+<span class="text-zinc-500">//SPDX-License-Identifier: MIT</span>
+<span class="text-violet-400">pragma</span> <span class="text-blue-400">solidity</span> ^0.8.9;
+
+<span class="text-blue-400">contract</span> <span class="text-teal-400">Greeter</span> <span class="text-yellow-400">{</span>
+    <span class="text-zinc-500">// Events that allows for emitting a message</span>
+    <span class="text-blue-400">event</span> <span class="text-teal-400">NewMessage</span><span class="text-pink-400">(</span><span class="text-teal-400">address</span> <span class="text-sky-500">sender</span>, <span class="text-teal-400">string</span> <span class="text-sky-500">message</span><span class="text-pink-400">)</span>;
+
+    <span class="text-zinc-500">// Variables</span>
+    string greeting;
+    
+    <span class="text-zinc-500">// Main constructor run at deployment</span>
+    constructor(string memory _greeting) {
+        greeting = _greeting;
+        emit NewMessage(msg.sender, _message);
+    }
+    
+    <span class="text-zinc-500">// Get function</span>
+    function getGreeting() public view returns (string memory) {
+        return greeting;
+    }
+    
+    <span class="text-zinc-500">// Set function</span>
+    function setGreeting(string memory _greeting) public {
+        greeting = _greeting;
+        emit NewMessage(msg.sender, _message);
+    }
+}                   </pre></code>
+                </div>
+            </div>
+
+            <label class="block mb-2 text-zinc-600">Contract ABI</label>
+            <div class="p-4 border rounded border-zinc-700 mb-6">
+                <button id="contract-abi"
+                    class="text-zinc-200 flex justify-between w-full text-left bg-zinc-700 px-3 leading-8 rounded hover:bg-zinc-600 transition-colors ease-in-out duration-200">
+                    Contract JSON ABI
+                    <span>&#9660;</span>
+                </button>
+                <div class="mb-4 mt-4 hidden">
+                    <code
+                        class="block overflow-scroll relative text-zinc-200 p-6 rounded bg-zinc-800 text-zinc-200"><pre></pre></code>
+                </div>
+            </div>
+
+            <label class="block mb-2 text-zinc-600">Contract Bytecode</label>
+            <div class="p-4 border rounded border-zinc-700 mb-6">
+                <button id="contract-bytecode"
+                    class="text-zinc-200 flex justify-between w-full text-left bg-zinc-700 px-3 leading-8 rounded hover:bg-zinc-600 transition-colors ease-in-out duration-200">
+                    Contract Bytecode
+                    <span>&#9660;</span>
+                </button>
+                <div class="mb-4 mt-4 hidden">
+                    <code
+                        class="block relative text-zinc-200 p-6 rounded bg-zinc-800 text-zinc-200 overflow-scroll"><pre></pre></code>
+                </div>
+            </div>
+
+            <label class="block mb-2 text-zinc-600">Deployed Contracts</label>
+            <div class="p-4 border rounded border-zinc-700 mb-6">
+                <button id="contract-chains"
+                    class="text-zinc-200 flex justify-between w-full text-left bg-zinc-700 px-3 leading-8 rounded hover:bg-zinc-600 transition-colors ease-in-out duration-200">
+                    Contract Addresses
+                    <span>&#9660;</span>
+                </button>
+                <div class="mb-4 mt-4 hidden">
+                    <!-- DYNAMICALLY SHOW CONTRACTS WILL BE GENERATED HERE -->
+                </div>
+            </div>
+
+            <h2 id="contract-read" class="text-xl text-zinc-100 mb-4">Contract Read</h2>
+
+            <p class="text-zinc-400 mb-4">Perform a contract read request of <span
+                    class="bg-zinc-700 text-zinc-200 py-1 px-1.5 rounded">getGreeting</span>.</p>
+
+            <form id="form-contract-read">
+                <div class="mb-4">
+                    <button type="submit"
+                        class="h-10 mb-2 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Get
+                        Greeting</button>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Response</label>
+                    <code
+                        class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200 overflow-scroll"><pre id="pre-contract-read"></pre></code>
+                </div>
+            </form>
+
+            <hr class="border-zinc-700 mb-8" />
+
+            <h2 id="contract-write" class="text-xl text-zinc-100 mb-4">Contract Write</h2>
+
+            <p class="text-zinc-400 mb-4">Perform a contract write request of <span
+                    class="bg-zinc-700 text-zinc-200 py-1 px-1.5 rounded">setGreeting</span>.</p>
+
+            <form id="form-contract-write">
+                <div class="mb-6">
+                    <label class="block mb-2 text-zinc-600">New Greeting</label>
+                    <input class="h-10 w-full px-3 rounded border bg-white" id="input-contract-write" type="text"
+                        name="greeting" placeholder="Ex: Your greeting..." />
+                </div>
+                <div class="mb-4">
+                    <button type=" submit"
+                        class="h-10 mb-2 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Set
+                        Greeting</button>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Response</label>
+                    <code
+                        class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200"><pre id="pre-contract-write"></pre></code>
+                </div>
+            </form>
+
+            <hr class="border-zinc-700 mb-8" />
+
+            <h2 id="contract-logged-events" class="text-xl text-zinc-100 mb-4">Contract Logged Events</h2>
+
+            <p class="text-zinc-400 mb-4">Retrieve logs with <span
+                    class="bg-zinc-700 text-zinc-200 py-1 px-1.5 rounded">eth_getLogs</span>.</p>
+
+            <form id="form-contract-logs">
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Contract Address</label>
+                    <input class="h-10 w-full px-3 rounded border bg-white" id="input-contract-logs-address" type="text"
+                        name="address" placeholder="Ex: 0x7Bd54062eFa363A97dC20f404825597455E93582" />
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">From Block</label>
+                    <input class="h-10 w-full px-3 rounded border bg-white" id="input-contract-logs-from" type="text"
+                        name="fromBlock" placeholder="Ex: 29481150 | latest" />
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">To Block</label>
+                    <input class="h-10 w-full px-3 rounded border bg-white" id="input-contract-logs-to" type="text"
+                        name="toBlock" placeholder="Ex: 29470982 | latest" />
+                </div>
+                <div class="mb-6">
+                    <label class="block mb-2 text-zinc-600">Topic *must use double quotes for array and max 4</label>
+                    <input class="h-10 w-full px-3 rounded border bg-white" id="input-contract-logs-to" type="text"
+                        name="topics"
+                        placeholder="Ex: ['Transfer(address,address,uint256)', 'Event(address,address,uint256)'']" />
+                </div>
+                <div class="mb-4">
+                    <button type="submit"
+                        class="h-10 mb-2 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Get
+                        Logs</button>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Response</label>
+                    <code
+                        class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200 overflow-scroll"><pre id="pre-contract-logs"></pre></code>
+                </div>
+            </form>
+
+            <hr class="border-zinc-700 mb-8" />
+
+            <h2 id="deploy-contract" class="text-xl text-zinc-100 mb-4">Deploy Contract</h2>
+
+            <p class="text-zinc-400 mb-4">Will deploy a new contract with <span
+                    class="bg-zinc-700 text-zinc-200 py-1 px-1.5 rounded">eth_sendTransaction</span>
+                with contract
+                bytecode and
+                initial string hex merged together.</p>
+
+            <div class="mb-4">
+                <label class="block mb-2 text-zinc-600">Example</label>
+                <code class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200 overflow-scroll"
+                    id="contract-deploy-example"><pre></pre></code>
+            </div>
+
+            <form id="form-contract-deploy">
+                <div class="mb-6">
+                    <label class="block mb-2 text-zinc-600">Initial Deployed Greeting</label>
+                    <input class="h-10 w-full px-3 rounded border bg-white" id="input-contract-greeting" type="text"
+                        name="greeting" placeholder="Ex: Hello there" />
+                </div>
+                <div class="mb-4">
+                    <button type="submit"
+                        class="h-10 mb-2 bg-zinc-200 text-zinc-800 px-5 rounded-full font-medium disabled:bg-opacity-30">Deploy</button>
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-zinc-600">Response</label>
+                    <code
+                        class="block bg-zinc-500 p-6 rounded bg-zinc-800 text-zinc-200"><pre id="pre-contract-deploy"></pre></code>
+                </div>
+            </form>
+
+            <hr class="border-zinc-700 mb-8" />
+
+            <p class="text-zinc-400 mb-4 text-sm">Built By <a
+                    class="hover:text-zinc-200 transition-colors ease-in-out duration-200" target="_blank"
+                    href="https://linktr.ee/codingwithmanny">@codingwithmanny</a></p>
+        </section>
+    </div>
+</body>
+
+
+</html>
