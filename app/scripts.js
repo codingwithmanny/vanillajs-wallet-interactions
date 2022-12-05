@@ -6,36 +6,19 @@
 let IS_MENU_OPEN = false;
 
 /**
- * Used to define throughout the app if the browser
- * has support for window.ethereum
+ * localStorage key
  */
-let IS_BROWSER_SUPPORTED = false;
-
-/**
- * 
- */
-let IS_CONNECTED = false;
-
+let WALLET_CONNECTION_PREF_KEY = 'WC_PREF';
 
 /**
  * Wallet address that is connected
  */
-let ACCOUNT_CONNECTED = null;
+let WALLET_CONNECTED = null;
 
 /**
  * 
  */
-let WALLET_PERMISSION;
-
-/**
- * 
- */
-let CHAIN;
-
-/**
- * 
- */
-let CHAIN_NAME;
+let CHAIN_CONNECTED;
 
 /**
  * 
@@ -199,7 +182,7 @@ const parseEthLogs = (logs) => {
             blockNumber: parseInt(log.blockNumber, 16),
             data: decodedData,
             topics: log?.topics?.map(topic => hashedEvents.find(event => event.hashed === topic)),
-            transactionHash: `${BLOCKCHAIN_EXPLORERS?.[CHAIN?.id] ?? ''}/tx/${log.transactionHash}`,
+            transactionHash: `${BLOCKCHAIN_EXPLORERS?.[CHAIN_CONNECTED?.id] ?? ''}/tx/${log.transactionHash}`,
             transactionIndex: parseInt(log.transactionIndex, 16),
             logIndex: parseInt(log.logIndex, 16),
         }
@@ -315,10 +298,10 @@ const onWalletConnection = () => {
     sectionConnected.classList = '';
 
     const preWalletAddress = document.getElementById('pre-wallet-address');
-    preWalletAddress.innerHTML = ACCOUNT_CONNECTED;
+    preWalletAddress.innerHTML = WALLET_CONNECTED;
 
     const preWalletNetwork = document.getElementById('pre-wallet-network');
-    preWalletNetwork.innerHTML = `${CHAIN?.id} / ${CHAIN?.name}`;
+    preWalletNetwork.innerHTML = `${CHAIN_CONNECTED?.id} / ${CHAIN_CONNECTED?.name}`;
 
     // Reset connected
     const contractChains = document.getElementById('contract-chains').parentElement.children[1];
@@ -328,7 +311,7 @@ const onWalletConnection = () => {
         const contractChain = buildContractChainTemplate(
             chain,
             CONTRACT_ON_CHAINS[chain],
-            `${CHAIN?.id}` === `${chain}`,
+            `${CHAIN_CONNECTED?.id}` === `${chain}`,
             CHAIN_MAINNETS.includes(parseInt(chain))
         );
         contractChains.innerHTML += contractChain;
@@ -400,8 +383,12 @@ const connect = async () => {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         const chainId = await ethereum.request({ method: 'eth_chainId' });
         onChainChanged(chainId);
-        ACCOUNT_CONNECTED = accounts[0];
-        IS_CONNECTED = true;
+
+        WALLET_CONNECTED = accounts[0];
+
+        // Update wallet connection preference to true
+        localStorage.setItem(WALLET_CONNECTION_PREF_KEY, true);
+
         onWalletConnection();
     } catch (error) {
         console.log({ error });
@@ -417,8 +404,11 @@ const connect = async () => {
 const disconnect = () => {
     console.group('disconnect');
 
-    ACCOUNT_CONNECTED = false;
-    IS_CONNECTED = false;
+    WALLET_CONNECTED = false;
+
+    // Remove wallet connection preference
+    localStorage.removeItem(WALLET_CONNECTION_PREF_KEY);
+
     onWalletDisconnect();
 
     console.groupEnd();
@@ -435,7 +425,7 @@ const onAccountsChanged = (accounts) => {
     if (accounts.length === 0) {
         onWalletDisconnect();
     } else {
-        ACCOUNT_CONNECTED = accounts?.[0];
+        WALLET_CONNECTED = accounts?.[0];
         onWalletConnection();
     }
 
@@ -450,12 +440,24 @@ const onChainChanged = (chainId) => {
     console.group('onChainChanged');
     console.log({ chainId });
 
-    const parsedChainId = parseInt(`${chainId}`, 16);
-    CHAIN = {
-        name: CHAIN_DICTIONARY?.[parsedChainId],
-        id: parsedChainId
-    };
-    onWalletConnection();
+    // Get the UI element that displays the wallet network
+    const preWalletNetwork = document.getElementById('pre-wallet-network');
+
+    if (!chainId) {
+        CHAIN_CONNECTED = null;
+
+        // Set the network to blank
+        preWalletNetwork.innerHTML = ``;
+    } else {
+        const parsedChainId = parseInt(`${chainId}`, 16);
+        CHAIN_CONNECTED = {
+            name: CHAIN_DICTIONARY?.[parsedChainId],
+            id: parsedChainId
+        };
+
+        // Set the network to show the current connected network
+        preWalletNetwork.innerHTML = `${CHAIN_CONNECTED?.id} / ${CHAIN_CONNECTED?.name}`;
+    }
 
     console.groupEnd();
 };
@@ -477,7 +479,7 @@ const onSubmitWalletBalance = async (event) => {
     try {
         const balance = await ethereum.request({
             method: 'eth_getBalance',
-            params: [ACCOUNT_CONNECTED, 'latest'],
+            params: [WALLET_CONNECTED, 'latest'],
         });
         const formatted = ethers.utils.formatEther(balance);
         preWalletBalance.innerHTML = `${balance}\n\n// ${parseInt(balance, 16)} Gwei Equiv.\n// OR ${formatted} Native Currency`;
@@ -568,7 +570,7 @@ const onSubmitSignMessage = async (event) => {
     try {
         const signature = await ethereum.request({
             method: 'personal_sign',
-            params: [message, ACCOUNT_CONNECTED],
+            params: [message, WALLET_CONNECTED],
         });
         preWalletSignature.innerHTML = signature;
     } catch (error) {
@@ -604,7 +606,7 @@ const onSubmitVerifySignature = (event) => {
     if (ethers?.utils?.verifyMessage) {
         const verifiedAddress = ethers.utils.verifyMessage(message, signature);
         console.log({ verifiedAddress });
-        preSignatureVerification.innerHTML = `CONNECTED ADDRESS: ${ACCOUNT_CONNECTED}\nVERIFICATION ADDRESS: ${verifiedAddress}\nMATCHES? ${ACCOUNT_CONNECTED.toLowerCase() === verifiedAddress.toLowerCase()}`;
+        preSignatureVerification.innerHTML = `CONNECTED ADDRESS: ${WALLET_CONNECTED}\nVERIFICATION ADDRESS: ${verifiedAddress}\nMATCHES? ${WALLET_CONNECTED.toLowerCase() === verifiedAddress.toLowerCase()}`;
     }
 
     button.removeAttribute('disabled');
@@ -635,14 +637,14 @@ const onSubmitContractRead = async (event) => {
     try {
         const result = await window.ethereum.request({
             method: 'eth_call', params: [{
-                to: CONTRACT_ON_CHAINS[CHAIN.id], "data": encodedFunction
+                to: CONTRACT_ON_CHAINS[CHAIN_CONNECTED.id], "data": encodedFunction
             }, "latest"]
         });
         preContractRead.innerHTML = `${result}\n\n// ${hex2ascii(result)}`;
     } catch (error) {
         console.log({ error });
         preContractRead.innerHTML = error?.message ?? 'Unknown contract read error.';
-        if (CHAIN_LOCAL.includes(CHAIN?.id) && CONTRACT_ON_CHAINS?.[CHAIN?.id]?.length === 0) {
+        if (CHAIN_LOCAL.includes(CHAIN_CONNECTED?.id) && CONTRACT_ON_CHAINS?.[CHAIN_CONNECTED?.id]?.length === 0) {
             preContractRead.innerHTML += `\n\n// No contract specified. Enter a contract in the Contract Addresses section.`
         }
     }
@@ -672,20 +674,20 @@ const onSubmitContractWrite = async (event) => {
     const encodedFunction = interface.encodeFunctionData(`${SetGreeting.name}`, [event.currentTarget.greeting.value]);
     console.log({ encodedFunction });
 
-    // Request getGreeting
+    // Request setGreeting
     try {
         const result = await window.ethereum.request({
             method: 'eth_sendTransaction', params: [{
-                from: ACCOUNT_CONNECTED,
-                to: CONTRACT_ON_CHAINS[CHAIN.id],
+                from: WALLET_CONNECTED,
+                to: CONTRACT_ON_CHAINS[CHAIN_CONNECTED.id],
                 "data": encodedFunction
             }, "latest"]
         });
-        preContractWrite.innerHTML = `${result}\n\n// ${BLOCKCHAIN_EXPLORERS?.[CHAIN?.id] ?? ''}/tx/${result}`;
+        preContractWrite.innerHTML = `${result}\n\n// ${BLOCKCHAIN_EXPLORERS?.[CHAIN_CONNECTED?.id] ?? ''}/tx/${result}`;
     } catch (error) {
         console.log({ error });
         preContractWrite.innerHTML = error?.message ?? 'Unknown contract write error.';
-        if (CHAIN_LOCAL.includes(CHAIN?.id) && CONTRACT_ON_CHAINS?.[CHAIN?.id]?.length === 0) {
+        if (CHAIN_LOCAL.includes(CHAIN_CONNECTED?.id) && CONTRACT_ON_CHAINS?.[CHAIN_CONNECTED?.id]?.length === 0) {
             console.log('true');
             preContractWrite.innerHTML += `\n\n// No contract specified. Enter a contract in the Contract Addresses section.`
         }
@@ -783,7 +785,7 @@ const onSubmitContractDeploy = async (event) => {
     try {
         const result = await window.ethereum.request({
             method: 'eth_sendTransaction', params: [{
-                from: ACCOUNT_CONNECTED,
+                from: WALLET_CONNECTED,
                 "data": fullByteCode
             }, "latest"]
         });
@@ -793,7 +795,7 @@ const onSubmitContractDeploy = async (event) => {
         });
 
         console.log({ tx });
-        preContractDeploy.innerHTML = `${result}\n\n// ${tx?.contractAddress ? `CONTRACT ADDRESS:\n// ${tx?.contractAddress}` : ''}`;
+        preContractDeploy.innerHTML = `${result}\n\n${tx?.contractAddress ? `// CONTRACT ADDRESS:\n// ${tx?.contractAddress}` : ''}`;
     } catch (error) {
         console.log({ error });
         preContractDeploy.innerHTML = error?.message ?? 'Unknown contract deploy error.';
@@ -835,22 +837,6 @@ const onClickContractToggle = (event) => {
  * Init
  */
 window.onload = async () => {
-    // Check if browser has wallet integration
-    if (typeof window?.ethereum !== "undefined") {
-        IS_BROWSER_SUPPORTED = true;
-
-        // Window ethereum on change
-        window.ethereum.on('accountsChanged', onAccountsChanged);
-        window.ethereum.on('chainChanged', onChainChanged);
-
-        // Check if there are any existing permissions to see if the wallet is connected
-        WALLET_PERMISSION = await window.ethereum.request({ method: 'wallet_getPermissions' });
-
-        if (WALLET_PERMISSION.length !== 0) {
-            connect();
-        }
-    }
-
     // Get All Elements
     const buttonMenu = document.getElementById('button-menu');
     const buttonConnect = document.getElementById('button-connect');
@@ -897,9 +883,26 @@ window.onload = async () => {
     // Display bytecode and input
     contractDeployExample.children[0].innerHTML = `BYTECODE:\n${CONTRACT_BYTECODE.slice(0, 10)}...${CONTRACT_BYTECODE.slice(-10)}\n\nINPUT:\n"Hello there"\n// 0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000b48656c6c6f207468657265000000000000000000000000000000000000000000\n\nTOGETHER:\n// ${CONTRACT_BYTECODE + ethers.utils.defaultAbiCoder.encode(["string"], ["Hello there"]).slice(2)}`;
 
-    // Active elements
-    if (IS_BROWSER_SUPPORTED) {
+    // Check if browser has wallet integration
+    if (typeof window?.ethereum !== "undefined") {
+        // Window ethereum on change
+        window.ethereum.on('accountsChanged', onAccountsChanged);
+        window.ethereum.on('chainChanged', onChainChanged);
+
+        // Check if there are any existing permissions to see if the wallet is connected
+        const hasWalletPermissions = await window.ethereum.request({ method: 'wallet_getPermissions' });
+        console.log({ hasWalletPermissions });
+
+        // Retrieve wallet connection preference from localStorage
+        const shouldBeConnected = JSON.parse(localStorage.getItem(WALLET_CONNECTION_PREF_KEY)) || false;
+        console.log({ shouldBeConnected });
+
+        // Activate elements
         buttonConnect.removeAttribute('disabled');
         buttonConnect.innerHTML = "Connect Wallet";
+
+        if (hasWalletPermissions.length > 0 && shouldBeConnected) {
+            connect();
+        }
     }
 };
